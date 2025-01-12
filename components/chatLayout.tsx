@@ -92,7 +92,7 @@ export const ChatLayout = () => {
         throw new Error("Failed to fetch chat messages");
       }
       const data = await response.json();
-      const transformedMessages = data.chats.map((chat: any) => ({
+      const transformedMessages = data.chats.map((chat: { user_query: string; gpt_response: string }) => ({
         user_query: chat.user_query,
         gpt_response: chat.gpt_response,
       }));
@@ -108,7 +108,7 @@ export const ChatLayout = () => {
 
   useEffect(() => {
     fetchChatEntries();
-  }, []);
+  }, [fetchChatEntries]);
 
   useEffect(() => {
     if (currentChatId) {
