@@ -10,18 +10,23 @@ import { ThemeToggle } from "./themeToggle";
 
 import { useIsMobile } from "@/hooks/use-mobile";
 
-export type Chat = {
-  id: string;
-  title: string;
-  messages: { role: "user" | "assistant"; content: string }[];
-  createdAt: number; // Time the chat was created
+export type ChatEntry = {
+  entry_id: string; // Sohbetin benzersiz ID'si
+  entry_name: string; // Sohbetin başlığı
+  created_at: string; // Sohbetin oluşturulma tarihi
+};
+
+export type ChatMessage = {
+  user_query: string; // Kullanıcının sorusu
+  gpt_response: string; // GPT'nin cevabı
 };
 
 export const ChatLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [chats, setChats] = useState<Chat[]>([]);
+  const [chats, setChats] = useState<ChatEntry[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-
+  const [isEntriesLoading, setIsEntriesLoading] = useState(false);
   const isMobile = useIsMobile();
 
   const setCurrentChatIdAndCloseSidebar = (id: string) => {
@@ -31,80 +36,120 @@ export const ChatLayout = () => {
     }
   };
 
-  useEffect(() => {
-    const savedChats = localStorage.getItem("chats");
-    if (savedChats) {
-      const parsedChats = JSON.parse(savedChats) as Chat[];
-      setChats(parsedChats);
-      if (parsedChats.length > 0 && !currentChatId) {
-        setCurrentChatId(parsedChats[0].id);
+  let isFetching = false;
+
+  // Sohbetleri fetch eden işlev
+  const fetchChatEntries = async () => {
+    if (isFetching) return; 
+    isFetching = true;
+
+    try {
+      const token = localStorage.getItem("token"); // Token'ı al
+      if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
+
+      setIsEntriesLoading(true);
+      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/entries/", {
+        headers: {
+          Authorization: `Token ${token}`, 
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat entries");
       }
+      const data: ChatEntry[] = await response.json();
+      setChats(data.slice(0, 50));
+      setIsEntriesLoading(false);
+      
+      // Geri kalanları işlemeye devam et
+      setTimeout(() => {
+        setChats(data); // Tam listeyi yükle
+      }, 1000); // Kalanları 1 saniye sonra yükle (örnek)
+
+    } catch (error) {
+      console.error("Error fetching chat entries:", error);
+    } finally {
+      isFetching = false;
+      console.log("Chat entries fetched successfully");  
     }
+  };
+
+  // Bir entry'nin mesajlarını fetch eden işlev
+  const fetchChatMessages = async (entryId: string) => {
+    try {
+      const token = localStorage.getItem("token"); // Token'ı al
+      if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
+
+      const response = await fetch(`https://libreconsulting.pythonanywhere.com/api/entries/${entryId}/`, {
+        headers: {
+          Authorization: `Token ${token}`, // Authorization başlığı ekle
+          "Content-Type": "application/json", // Content-Type başlığı ekle
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch chat messages");
+      }
+      const data = await response.json();
+      const transformedMessages = data.chats.map((chat: any) => ({
+        user_query: chat.user_query,
+        gpt_response: chat.gpt_response,
+      }));
+      setMessages(transformedMessages); // Endpoint'ten dönen `chats` alanını kullanıyoruz
+      
+      console.log("Messages:", transformedMessages);
+      console.log("Messages State:", messages);
+
+    } catch (error) {
+      console.error("Error fetching chat messages:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchChatEntries();
   }, []);
 
   useEffect(() => {
-    if (chats.length > 0) {
-      localStorage.setItem("chats", JSON.stringify(chats));
-    } else {
-      localStorage.removeItem("chats");
+    if (currentChatId) {
+      fetchChatMessages(currentChatId);
     }
-  }, [chats]);
+  }, [currentChatId]);
 
   const createNewChat = () => {
-    const newChat: Chat = {
-      id: Date.now().toString(),
-      title: `Chat ${chats.length + 1}`,
-      messages: [],
-      createdAt: Date.now(),
-    };
-    setChats((prevChats) => [...prevChats, newChat]);
-    setCurrentChatId(newChat.id);
-    return newChat.id;
+    setCurrentChatId(null); // Seçili sohbet sıfırlanır
+    setMessages([]); // Mesajlar sıfırlanır
   };
 
-  const addMessageToChat = (
-    chatId: string,
-    message: { role: "user" | "assistant"; content: string }
-  ) => {
-    setChats((prevChats) =>
-      prevChats.map((chat) =>
-        chat.id === chatId
-          ? { ...chat, messages: [...chat.messages, message] }
-          : chat
-      )
-    );
+  const addMessageToChat = (chatId: string, message: ChatMessage) => {
+    setMessages((prevMessages) => [...prevMessages, message]);
   };
 
   const shareChat = (chatId: string) => {
-    const chat = chats.find((c) => c.id === chatId);
+    const chat = chats.find((c) => c.entry_id === chatId);
     if (chat) {
-      console.log(`Sharing chat: ${chat.title}`);
-      alert(`Sharing chat: ${chat.title}`);
+      console.log(`Sharing chat: ${chat.entry_name}`);
+      alert(`Sharing chat: ${chat.entry_name}`);
     }
   };
 
   const renameChat = (chatId: string, newTitle: string) => {
     setChats((prevChats) =>
       prevChats.map((chat) =>
-        chat.id === chatId ? { ...chat, title: newTitle } : chat
+        chat.entry_id === chatId ? { ...chat, entry_name: newTitle } : chat
       )
     );
   };
 
   const deleteChat = (chatId: string) => {
     setChats((prevChats) => {
-      const updatedChats = prevChats.filter((chat) => chat.id !== chatId);
+      const updatedChats = prevChats.filter((chat) => chat.entry_id !== chatId);
       if (currentChatId === chatId) {
-        setCurrentChatId(updatedChats.length > 0 ? updatedChats[0].id : null);
-      }
-      // Update local storage
-      if (updatedChats.length === 0) {
-        localStorage.removeItem("chats");
-      } else {
-        localStorage.setItem("chats", JSON.stringify(updatedChats));
+        setCurrentChatId(updatedChats.length > 0 ? updatedChats[0].entry_id : null);
       }
       return updatedChats;
     });
+    setMessages([]); // Mesajlar sıfırlanır
   };
 
   return (
@@ -119,10 +164,11 @@ export const ChatLayout = () => {
         shareChat={shareChat}
         renameChat={renameChat}
         deleteChat={deleteChat}
+        isEntriesLoading={isEntriesLoading}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white shadow-sm z-10 dark:bg-gray-800 dark:shadow-white">
-          <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
+        <header className="bg-white shadow-md z-10 dark:bg-gray-800 dark:shadow-zinc-700 border-b-gray-700">
+          <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8 flex justify-between items-center">
             <Button
               variant="ghost"
               size="icon"
@@ -131,21 +177,25 @@ export const ChatLayout = () => {
             >
               <Menu className="h-6 w-6" />
             </Button>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-              Smart Asistant
+            <h1 className="text-lg font-semibold text-gray-500 dark:text-gray-400">
+              Smart Assistant
             </h1>
             <div className="flex items-center space-x-2">
-              <UserAvatar />
+              <UserAvatar  />
               <ThemeToggle />
             </div>
           </div>
         </header>
         <ChatArea
-          currentChat={chats.find((chat) => chat.id === currentChatId)}
-          chats={chats}
+          currentChatId={chats.find((chat) => chat.entry_id === currentChatId)?.entry_id || null}
+          setCurrentChatId={setCurrentChatId}
+          messages={messages}
           addMessageToChat={addMessageToChat}
           createNewChat={createNewChat}
           setOpen={setSidebarOpen}
+          fetchChatEntries={fetchChatEntries}
+          setMessages={setMessages}
+          isMobile={isMobile}
         />
       </div>
     </div>

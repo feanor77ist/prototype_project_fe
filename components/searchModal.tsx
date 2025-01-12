@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,12 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Chat } from "./chatLayout";
+import { ChatEntry } from "./chatLayout";
 
 type SearchModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  chats: Chat[];
+  chats: ChatEntry[];
   setCurrentChatId: (id: string) => void;
 };
 
@@ -25,12 +25,21 @@ export const SearchModal = ({
   setCurrentChatId,
 }: SearchModalProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<Chat[]>([]);
+  const [searchResults, setSearchResults] = useState<ChatEntry[]>([]);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50); // Küçük bir gecikme ile odaklanma
+    }
+  }, [isOpen]); 
 
   useEffect(() => {
     if (searchQuery) {
       const filteredChats = chats.filter((chat) =>
-        chat.title.toLowerCase().includes(searchQuery.toLowerCase())
+        chat.entry_name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setSearchResults(filteredChats);
     } else {
@@ -45,7 +54,7 @@ export const SearchModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white dark:bg-gray-800">
         <DialogHeader>
           <DialogTitle>Sohbet Ara</DialogTitle>
           <Button
@@ -59,21 +68,22 @@ export const SearchModal = ({
         </DialogHeader>
         <div className="py-4">
           <Input
+            ref={inputRef}
             placeholder="Sohbet Ara..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="mb-4"
+            className="mb-4 border-gray-200 dark:border-gray-700 rounded-2xl"
           />
           <ScrollArea className="h-[300px]">
             {searchResults.length > 0
               ? searchResults.map((chat) => (
                   <Button
-                    key={chat.id}
+                    key={chat.entry_id}
                     variant="ghost"
                     className="w-full justify-start mb-2"
-                    onClick={() => handleSelectChat(chat.id)}
+                    onClick={() => handleSelectChat(chat.entry_id)}
                   >
-                    {chat.title}
+                    {chat.entry_name}
                   </Button>
                 ))
               : searchQuery && (
