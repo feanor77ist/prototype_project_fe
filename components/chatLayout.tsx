@@ -108,7 +108,7 @@ export const ChatLayout = () => {
 
   useEffect(() => {
     fetchChatEntries();
-  }, [fetchChatEntries]);
+  }, []);
 
   useEffect(() => {
     if (currentChatId) {
