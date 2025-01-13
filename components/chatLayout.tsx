@@ -119,6 +119,7 @@ export const ChatLayout = () => {
   const createNewChat = () => {
     setCurrentChatId(null); // Seçili sohbet sıfırlanır
     setMessages([]); // Mesajlar sıfırlanır
+    if (isMobile) setSidebarOpen(false);
   };
 
   const addMessageToChat = (chatId: string, message: ChatMessage) => {
