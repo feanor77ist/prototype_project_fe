@@ -318,7 +318,7 @@ export const Sidebar = ({
                   </Button>
                 }
                   {!isDocumentLoading && documents.length === 0 ? (
-                    <p className="text-gray-500">Yüklenmiş doküman yok.</p>
+                    <p className="px-6 text-gray-500">Yüklenmiş doküman yok.</p>
                   ) : (
                     <ul className="px-4 bg-gray-100 dark:bg-gray-900">
                       {documents.map((doc) => (
