@@ -326,9 +326,11 @@ export const Sidebar = ({
                         key={doc.id}
                         className="flex justify-between items-center text-left bg-gray-100 dark:bg-gray-900 rounded-lg"
                       >
-                        <span title={doc.file.split('/').pop()} 
-                              className="w-48 truncate text-[14px] font-sans hover:bg-gray-200 dark:hover:bg-gray-700 py-2 p-2 rounded-lg"
-                        >{doc.file.split('/').pop()}
+                        <span 
+                          title={doc.file ? decodeURIComponent(doc.file.split('/').pop() || "") : ""}
+                          className="w-48 truncate text-[14px] font-sans hover:bg-gray-200 dark:hover:bg-gray-700 py-2 p-2 rounded-lg"
+                        >
+                          {doc.file ? decodeURIComponent(doc.file.split('/').pop() || "")  : ""}
                         </span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
