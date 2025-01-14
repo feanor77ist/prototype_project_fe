@@ -273,7 +273,7 @@ export const ChatArea = ({
                 </p>
                 <div
                   className={`flex flex-col items-center mt-2 ${
-                    isMobile && "gap-0"
+                    isMobile && "gap-1"
                   }`}
                 >
                   {genericQuestions[selectedEntry]?.map((question, idx) => (
