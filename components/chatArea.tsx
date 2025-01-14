@@ -251,7 +251,7 @@ export const ChatArea = ({
                 className={`absolute bottom-12 left-1/2 transform -translate-x-1/2 transition-all duration-500 ease-in-out ${
                   showQuestions ? "opacity-100 visible" : "opacity-0 invisible"
                 } ${
-                  isMobile && "bg-purple-300 dark:bg-purple-700 p-7 w-[90%]"
+                  isMobile && "bg-purple-200 dark:bg-purple-700 p-7 w-[90%]"
                 }`}
               >
                 {isMobile && (
