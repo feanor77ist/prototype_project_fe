@@ -44,7 +44,7 @@ export const ChatLayout = () => {
     isFetching = true;
 
     try {
-      const token = localStorage.getItem("token"); // Token'ı al
+      const token = localStorage.getItem("token");
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
 
       setIsEntriesLoading(true);
