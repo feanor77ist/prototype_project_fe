@@ -146,7 +146,7 @@ export const Sidebar = ({
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
       
       setIsDocumentLoading(true);
-      const response = await fetch("http://127.0.0.1:8000/api/document/", {
+      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/document/", {
         headers: {
           Authorization: `Token ${token}`, 
           "Content-Type": "application/json",
@@ -174,7 +174,7 @@ export const Sidebar = ({
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
       
       setIsDocumentUploading(true);
-      const response = await fetch("http://127.0.0.1:8000/api/document/", {
+      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/document/", {
         method: "POST",
         headers: {
           Authorization: `Token ${token}`, 
@@ -206,7 +206,7 @@ export const Sidebar = ({
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
 
       setIsDocumentDeleting(documentId);
-      const response = await fetch(`http://127.0.0.1:8000/api/document/${documentId}/`, {
+      const response = await fetch(`https://libreconsulting.pythonanywhere.com/api/document/${documentId}/`, {
         method: "DELETE",
         headers: {
           Authorization: `Token ${token}`, 
