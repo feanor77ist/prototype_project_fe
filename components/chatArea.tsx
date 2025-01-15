@@ -74,7 +74,7 @@ export const ChatArea = ({
 
     try {
       const response = await fetch(
-        "https://libreconsulting.pythonanywhere.com/api/chatbot/",
+        "http://127.0.0.1:8000/api/chatbot/",
         {
           method: "POST",
           headers: {

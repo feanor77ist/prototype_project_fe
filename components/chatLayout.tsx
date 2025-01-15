@@ -48,7 +48,7 @@ export const ChatLayout = () => {
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
 
       setIsEntriesLoading(true);
-      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/entries/", {
+      const response = await fetch("http://127.0.0.1:8000/api/entries/", {
         headers: {
           Authorization: `Token ${token}`, 
           "Content-Type": "application/json",
@@ -81,7 +81,7 @@ export const ChatLayout = () => {
       const token = localStorage.getItem("token"); // Token'ı al
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
 
-      const response = await fetch(`https://libreconsulting.pythonanywhere.com/api/entries/${entryId}/`, {
+      const response = await fetch(`http://127.0.0.1:8000/api/entries/${entryId}/`, {
         headers: {
           Authorization: `Token ${token}`, // Authorization başlığı ekle
           "Content-Type": "application/json", // Content-Type başlığı ekle
