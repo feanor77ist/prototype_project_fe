@@ -41,6 +41,7 @@ type SidebarProps = {
   deleteChat: (id: string) => void;
   chats: ChatEntry[];
   isEntriesLoading: boolean;
+  loadMoreChats: () => void;
 };
 
 type ClassifiedChats = {
@@ -83,11 +84,14 @@ export const Sidebar = ({
   deleteChat,
   chats,
   isEntriesLoading,
+  loadMoreChats,
 }: SidebarProps) => {
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  // Sidebarda scroll ile loadMoreChats işlevini çağırmak için
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [isDocumentLoading, setIsDocumentLoading] = useState(false);
   const [isDocumentUploading, setIsDocumentUploading] = useState(false);
@@ -96,7 +100,39 @@ export const Sidebar = ({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const isMobile = useIsMobile();
 
-  // Sidebar dışına tıklanınca kapanma işlevi
+  // Kullanıcı Yetkilendirme
+  const permissions = JSON.parse(localStorage.getItem("permissions") || "null");
+  const hasDocumentPermission = permissions.includes("my_app.view_document");
+
+  // 1) ScrollArea içindeki gerçek viewport'u bulup scroll event'i dinliyoruz
+  useEffect(() => {
+    if (!scrollAreaRef.current) return;
+
+    // ShadCN UI, data-radix-scroll-area-viewport attribute'una sahip bir <div> oluşturur
+    const viewportEl = scrollAreaRef.current.querySelector(
+      "[data-radix-scroll-area-viewport]"
+    ) as HTMLDivElement | null;
+
+    if (!viewportEl) return;
+
+    const handleScroll = (e: Event) => {
+      const target = e.currentTarget as HTMLDivElement;
+      // Scroll'un en altına gelindi mi?
+      if (Math.abs(target.scrollHeight - target.scrollTop - target.clientHeight) < 2) {
+        if (!isEntriesLoading) {
+          loadMoreChats();
+        }
+      }
+    };
+
+    viewportEl.addEventListener("scroll", handleScroll);
+
+    return () => {
+      viewportEl.removeEventListener("scroll", handleScroll);
+    };
+  }, [isEntriesLoading, loadMoreChats]);
+
+  // 2) Sidebar dışına tıklayınca kapanma işlevi
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (renamingChatId !== null) {
@@ -120,6 +156,7 @@ export const Sidebar = ({
     };
   }, [setOpen, renamingChatId, isMobile]);
 
+  // Chat'i yeniden adlandırma
   const handleRename = (chatId: string) => {
     if (newTitle.trim()) {
       renameChat(chatId, newTitle.trim());
@@ -144,11 +181,12 @@ export const Sidebar = ({
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
-      
+
       setIsDocumentLoading(true);
-      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/document/", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/document/`, {
         headers: {
-          Authorization: `Token ${token}`, 
+          Authorization: `Token ${token}`,
           "Content-Type": "application/json",
         },
       });
@@ -172,12 +210,13 @@ export const Sidebar = ({
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
-      
+
       setIsDocumentUploading(true);
-      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/document/", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/document/`, {
         method: "POST",
         headers: {
-          Authorization: `Token ${token}`, 
+          Authorization: `Token ${token}`,
         },
         body: formData,
       });
@@ -192,8 +231,7 @@ export const Sidebar = ({
       setIsUploadComplete(true);
     } catch (error) {
       console.error("Error uploading document:", error);
-    }
-    finally {
+    } finally {
       setIsDocumentUploading(false);
       console.log("File uploaded successfully");
     }
@@ -206,10 +244,11 @@ export const Sidebar = ({
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
 
       setIsDocumentDeleting(documentId);
-      const response = await fetch(`https://libreconsulting.pythonanywhere.com/api/document/${documentId}/`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/document/${documentId}/`, {
         method: "DELETE",
         headers: {
-          Authorization: `Token ${token}`, 
+          Authorization: `Token ${token}`,
         },
       });
 
@@ -220,8 +259,7 @@ export const Sidebar = ({
       setDocuments((prevDocs) => prevDocs.filter((doc) => doc.id !== documentId));
     } catch (error) {
       console.error("Error deleting document:", error);
-    }
-    finally {
+    } finally {
       setIsDocumentDeleting(null);
       console.log("File deleted successfully");
     }
@@ -287,186 +325,215 @@ export const Sidebar = ({
               Smart Assistant
             </Button>
 
-            <Accordion type="single" collapsible className="w-full mt-auto mb-auto">
-              <AccordionItem value="documents" className="border-b-gray-200 dark:border-b-gray-700">
-              <AccordionTrigger
-                onClick={() => {
-                  if (documents.length === 0 && !isDocumentLoading) {
-                    fetchDocuments(); // Sadece dokümanlar henüz yüklenmemişse çağır
-                  }
-                }}
-              >
-                <Button
-                  className="w-48 px-2 ml-4 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 justify-start"
-                  variant="ghost"
-                  title="Doküman Yönetimi Panelini Aç"
-                >
-                  {(isDocumentLoading && !isUploadComplete) ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <FolderOpenDot className="mr-2 h-5 w-5 text-gray-800 dark:text-gray-200" />}
-                  Doküman Yönetimi
-                </Button>
-              </AccordionTrigger>
-                <AccordionContent>
-                {(!isDocumentLoading || isUploadComplete) &&
-                  <Button
-                    className="w-48 mx-4 px-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 justify-start"
-                    variant="ghost"
-                    onClick={() => fileInputRef.current?.click()}
-                    title="Yeni Doküman Yükle"
+            {hasDocumentPermission ? (
+              <Accordion type="single" collapsible className="w-full mt-auto mb-auto">
+                <AccordionItem value="documents" className="border-b-gray-200 dark:border-b-gray-700">
+                  <AccordionTrigger
+                    onClick={() => {
+                      if (documents.length === 0 && !isDocumentLoading) {
+                        fetchDocuments();
+                      }
+                    }}
                   >
-                    {isDocumentUploading ? <Loader className="h-4 w-4 animate-spin mr-2" /> : <Upload className="mr-2 h-5 w-5 text-gray-800 dark:text-gray-200" />}
-                    Yükle
-                  </Button>
-                }
-                  {!isDocumentLoading && documents.length === 0 ? (
-                    <p className="px-6 text-gray-500">Yüklenmiş doküman yok.</p>
-                  ) : (
-                    <ul className="px-4 bg-gray-100 dark:bg-gray-900">
-                      {documents.map((doc) => (
-                      <li
-                        key={doc.id}
-                        className="flex justify-between items-center text-left bg-gray-100 dark:bg-gray-900 rounded-lg"
+                    <Button
+                      className="w-48 px-2 ml-4 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 justify-start"
+                      variant="ghost"
+                      title="Doküman Yönetimi Panelini Aç"
+                    >
+                      {(isDocumentLoading && !isUploadComplete) ? (
+                        <Loader className="h-4 w-4 animate-spin mr-2" />
+                      ) : (
+                        <FolderOpenDot className="mr-2 h-5 w-5 text-gray-800 dark:text-gray-200" />
+                      )}
+                      Doküman Yönetimi
+                    </Button>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    {(!isDocumentLoading || isUploadComplete) && (
+                      <Button
+                        className="w-48 mx-4 px-2 text-sm hover:bg-gray-200 dark:hover:bg-gray-700 justify-start"
+                        variant="ghost"
+                        onClick={() => fileInputRef.current?.click()}
+                        title="Yeni Doküman Yükle"
                       >
-                        <span 
-                          title={doc.file ? decodeURIComponent(doc.file.split('/').pop() || "") : ""}
-                          className="w-48 truncate text-[14px] font-sans hover:bg-gray-200 dark:hover:bg-gray-700 py-2 p-2 rounded-lg"
-                        >
-                          {doc.file ? decodeURIComponent(doc.file.split('/').pop() || "")  : ""}
-                        </span>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="hover:bg-gray-200 dark:hover:bg-gray-600 w-7"
-                              title="Doküman Menüsü"
+                        {isDocumentUploading ? (
+                          <Loader className="h-4 w-4 animate-spin mr-2" />
+                        ) : (
+                          <Upload className="mr-2 h-5 w-5 text-gray-800 dark:text-gray-200" />
+                        )}
+                        Yükle
+                      </Button>
+                    )}
+                    {!isDocumentLoading && documents.length === 0 ? (
+                      <p className="px-6 text-gray-500">Yüklenmiş doküman yok.</p>
+                    ) : (
+                      <ul className="px-4 bg-gray-100 dark:bg-gray-900">
+                        {documents.map((doc) => (
+                          <li
+                            key={doc.id}
+                            className="flex justify-between items-center text-left bg-gray-100 dark:bg-gray-900 rounded-lg"
+                          >
+                            <span
+                              title={
+                                doc.file
+                                  ? decodeURIComponent(doc.file.split("/").pop() || "")
+                                  : ""
+                              }
+                              className="w-48 truncate text-[14px] font-sans hover:bg-gray-200 dark:hover:bg-gray-700 py-2 p-2 rounded-lg"
                             >
-                              {isDocumentDeleting === doc.id ?
-                                <Loader className="h-4 w-4 animate-spin" /> : <MoreVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />}
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="ml-10 shadow-2xl bg-white dark:bg-gray-900 rounded-2xl p-2">
-                            <DropdownMenuItem
-                              onClick={() => deleteDocument(doc.id)}
-                              className="rounded-lg text-red-600 font-semibold"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Dokümanı Sil
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </li>        
-                      ))}
-                    </ul>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={uploadDocument}
-                className="hidden"
-              />
-            </Accordion>
+                              {doc.file
+                                ? decodeURIComponent(doc.file.split("/").pop() || "")
+                                : ""}
+                            </span>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="hover:bg-gray-200 dark:hover:bg-gray-600 w-7"
+                                  title="Doküman Menüsü"
+                                >
+                                  {isDocumentDeleting === doc.id ? (
+                                    <Loader className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <MoreVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                                  )}
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="ml-10 shadow-2xl bg-white dark:bg-gray-900 rounded-2xl p-2">
+                                <DropdownMenuItem
+                                  onClick={() => deleteDocument(doc.id)}
+                                  className="rounded-lg text-red-600 font-semibold"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Dokümanı Sil
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </AccordionContent>
+                </AccordionItem>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={uploadDocument}
+                  className="hidden"
+                />
+              </Accordion>
+            ) : (
+              <>
+                <br />
+                <br />
+              </>
+            )}
           </div>
+
           {/* Sohbet Listesi */}
-          <ScrollArea className="flex-1 px-4">
+          <ScrollArea className="flex-1 px-4" style={{ maxHeight: "calc(100vh - 230px)", minHeight: 0 }} ref={scrollAreaRef}>
             {isEntriesLoading && (
               <div className="absolute inset-4 flex items-start justify-center">
                 <Loader className="h-4 w-4 animate-spin" />
               </div>
             )}
             <div className="space-y-4 py-4">
-              {Object.entries(classifiedChats).map(
-                ([category, categoryChats]) => (
-                  <div key={category}>
-                    <h3 className="mb-1 text-xs font-semibold text-gray-400">
-                      {category}
-                    </h3>
-                    <div className="space-y-0.5">
-                      {categoryChats
-                        .sort(
-                          (a, b) =>
-                            new Date(b.created_at).getTime() -
-                            new Date(a.created_at).getTime()
-                        )
-                        .map((chat) => (
-                          <div key={chat.entry_id} className="flex items-center">
-                            {/* Entry Name */}
-                            {renamingChatId === chat.entry_id ? (
-                              <form
-                                onSubmit={(e) => {
-                                  e.preventDefault();
-                                  handleRename(chat.entry_id);
-                                }}
-                                className="flex-1 mr-2"
-                              >
-                                <Input
-                                  value={newTitle}
-                                  onChange={(e) => setNewTitle(e.target.value)}
-                                  placeholder="Sohbet adını girin"
-                                  className="bg-gray-800 text-white"
-                                  onBlur={() => handleRename(chat.entry_id)}
-                                  autoFocus
-                                />
-                              </form> 
-                            ) : (
-                              <Button
-                                variant={
-                                  chat.entry_id === currentChatId
-                                    ? "default"
-                                    : "ghost"
-                                }
-                                className={`w-48 flex justify-between items-center text-left text-[14px] truncate px-2 py-1 font-normal font-sans ${
-                                  chat.entry_id === currentChatId
-                                    ? "bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                                    : "hover:bg-gray-200 dark:hover:bg-gray-700"
-                                }`}
-                                onClick={() => handleChatClick(chat.entry_id)}
-                                title={chat.entry_name}
-                              >
-                                {chat.entry_name}
-                              </Button>
-                            )}
+              {Object.entries(classifiedChats).map(([category, categoryChats]) => (
+                <div key={category}>
+                  <h3 className="mb-1 text-xs font-semibold text-gray-400">
+                    {category}
+                  </h3>
+                  <div className="space-y-0.5">
+                    {categoryChats
+                      .sort(
+                        (a, b) =>
+                          new Date(b.created_at).getTime() -
+                          new Date(a.created_at).getTime()
+                      )
+                      .map((chat) => (
+                        <div key={chat.entry_id} className="flex items-center">
+                          {/* Entry Name */}
+                          {renamingChatId === chat.entry_id ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleRename(chat.entry_id);
+                              }}
+                              className="flex-1 mr-2"
+                            >
+                              <Input
+                                value={newTitle}
+                                onChange={(e) => setNewTitle(e.target.value)}
+                                placeholder="Sohbet adını girin"
+                                className="bg-gray-800 text-white"
+                                onBlur={() => handleRename(chat.entry_id)}
+                                autoFocus
+                              />
+                            </form>
+                          ) : (
+                            <Button
+                              variant={
+                                chat.entry_id === currentChatId
+                                  ? "default"
+                                  : "ghost"
+                              }
+                              className={`w-48 flex justify-between items-center text-left text-[14px] truncate px-2 py-1 font-normal font-sans ${
+                                chat.entry_id === currentChatId
+                                  ? "bg-gray-200 text-black hover:bg-gray-300 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
+                                  : "hover:bg-gray-200 dark:hover:bg-gray-700"
+                              }`}
+                              onClick={() => handleChatClick(chat.entry_id)}
+                              title={chat.entry_name}
+                            >
+                              {chat.entry_name}
+                            </Button>
+                          )}
 
-                            {/* Dropdown Menü */}
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="hover:bg-zinc-200 dark:hover:bg-zinc-700 w-7 ml-1"
-                                  title="Sohbet menüsü"
-                                >
-                                  <MoreVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent data-dropdown-menu className="ml-10 shadow-2xl bg-white dark:bg-gray-900 rounded-2xl p-2">
-                                <DropdownMenuItem
-                                  onClick={() => shareChat(chat.entry_id)} className="rounded-lg"
-                                >
-                                  <Share className="mr-2 h-4 w-4" />
-                                  Paylaş
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setRenamingChatId(chat.entry_id)} className="rounded-lg"
-                                >
-                                  <Pencil className="mr-2 h-4 w-4" />
-                                  Yeniden Adlandır
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => deleteChat(chat.entry_id)} className="rounded-lg text-red-600 font-semibold"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Sil
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </div>
-                        ))}
-                    </div>
+                          {/* Dropdown Menü */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="hover:bg-zinc-200 dark:hover:bg-zinc-700 w-7 ml-1"
+                                title="Sohbet menüsü"
+                              >
+                                <MoreVertical className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              data-dropdown-menu
+                              className="ml-10 shadow-2xl bg-white dark:bg-gray-900 rounded-2xl p-2"
+                            >
+                              <DropdownMenuItem
+                                onClick={() => shareChat(chat.entry_id)}
+                                className="rounded-lg"
+                              >
+                                <Share className="mr-2 h-4 w-4" />
+                                Paylaş
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setRenamingChatId(chat.entry_id)}
+                                className="rounded-lg"
+                              >
+                                <Pencil className="mr-2 h-4 w-4" />
+                                Yeniden Adlandır
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => deleteChat(chat.entry_id)}
+                                className="rounded-lg text-red-600 font-semibold"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Sil
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      ))}
                   </div>
-                )
-              )}
+                </div>
+              ))}
             </div>
           </ScrollArea>
         </div>
@@ -481,14 +548,14 @@ export const Sidebar = ({
           setCurrentChatId={setCurrentChatId}
         />
       )}
-      
+
       {/* Doküman Yükleme Tamam Modalı */}
       {isUploadComplete && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
           <div className="bg-white dark:bg-gray-800 rounded-lg p-10 shadow-lg">
             <h2 className="text-lg font-semibold text-center">Doküman Yüklendi!</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
-              Doküman başarıyla yüklendi ve sisteminize eklendi.
+              Doküman sisteminize başarıyla yüklendi.
             </p>
             <Button
               className="mt-4 mx-auto block"
@@ -499,7 +566,6 @@ export const Sidebar = ({
           </div>
         </div>
       )}
-
     </>
   );
 };

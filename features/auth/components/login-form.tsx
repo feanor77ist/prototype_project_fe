@@ -26,7 +26,8 @@ export function LoginForm() {
     setError("");
 
     try {
-      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/login/", {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/login/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }), // username ve password gönderiliyor
@@ -37,8 +38,16 @@ export function LoginForm() {
       }
 
       const data = await response.json();
-      localStorage.setItem("token", data.token); // Token'ı localStorage'a kaydet
-      console.log("Token kaydedildi:", localStorage.getItem("token")); // Token'ı kontrol et
+      localStorage.setItem("token", data.token); // Token'ı localStorage'a 
+      localStorage.setItem("permissions", JSON.stringify(data.permissions)); 
+      localStorage.setItem("user", JSON.stringify({
+        user_id: data.user_id,
+        username: data.username,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email
+      }));  // Kullanıcı bilgilerini kaydet
+      console.log("Kullanıcı bilgileri kaydedildi:", data);
       router.push("/"); // Giriş başarılıysa ana sayfaya yönlendir
     } catch (err: any) {
       setError(err.message);

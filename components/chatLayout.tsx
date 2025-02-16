@@ -7,8 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { UserAvatar } from "./userAvatar";
 import { ThemeToggle } from "./themeToggle";
-
 import { useIsMobile } from "@/hooks/use-mobile";
+
+export type PaginatedChatEntry = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ChatEntry[];
+};
 
 export type ChatEntry = {
   entry_id: string; // Sohbetin benzersiz ID'si
@@ -19,6 +25,7 @@ export type ChatEntry = {
 export type ChatMessage = {
   user_query: string; // Kullanıcının sorusu
   gpt_response: string; // GPT'nin cevabı
+  sources?: Array<{ source: string; snippet: string }>;
 };
 
 export const ChatLayout = () => {
@@ -28,6 +35,8 @@ export const ChatLayout = () => {
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [isEntriesLoading, setIsEntriesLoading] = useState(false);
   const isMobile = useIsMobile();
+  const [page, setPage] = useState(1);
+  const itemsPerPage = 50;
 
   const setCurrentChatIdAndCloseSidebar = (id: string) => {
     setCurrentChatId(id);
@@ -36,19 +45,15 @@ export const ChatLayout = () => {
     }
   };
 
-  let isFetching = false;
-
   // Sohbetleri fetch eden işlev
-  const fetchChatEntries = async () => {
-    if (isFetching) return; 
-    isFetching = true;
-
+  const fetchChatEntries = async (pageNum = 1) => { 
+    const API_URL = process.env.NEXT_PUBLIC_API_URL;
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
 
       setIsEntriesLoading(true);
-      const response = await fetch("https://libreconsulting.pythonanywhere.com/api/entries/", {
+      const response = await fetch(`${API_URL}/api/entries/?page=${pageNum}&page_size=${itemsPerPage}`, {
         headers: {
           Authorization: `Token ${token}`, 
           "Content-Type": "application/json",
@@ -58,21 +63,31 @@ export const ChatLayout = () => {
       if (!response.ok) {
         throw new Error("Failed to fetch chat entries");
       }
-      const data: ChatEntry[] = await response.json();
-      setChats(data.slice(0, 50));
+
+      const data = (await response.json()) as PaginatedChatEntry;
+      const entries = data.results;
+      if (pageNum === 1) {
+        setChats(entries);
+      } else {
+        setChats((prev) => [...prev, ...entries]);
+      }
+      setPage(pageNum);
       setIsEntriesLoading(false);
-      
-      // Geri kalanları işlemeye devam et
-      setTimeout(() => {
-        setChats(data); // Tam listeyi yükle
-      }, 1000); // Kalanları 1 saniye sonra yükle (örnek)
 
     } catch (error) {
       console.error("Error fetching chat entries:", error);
+      setIsEntriesLoading(false);
     } finally {
-      isFetching = false;
       console.log("Chat entries fetched successfully");  
     }
+  };
+
+  const loadMoreChats = () => {
+    fetchChatEntries(page + 1);
+  };
+
+  const appendNewChatEntry = (entry: ChatEntry) => {
+    setChats((prev) => [entry, ...prev]);
   };
 
   // Bir entry'nin mesajlarını fetch eden işlev
@@ -80,8 +95,9 @@ export const ChatLayout = () => {
     try {
       const token = localStorage.getItem("token"); // Token'ı al
       if (!token) throw new Error("Kullanıcı oturumu bulunamadı.");
-
-      const response = await fetch(`https://libreconsulting.pythonanywhere.com/api/entries/${entryId}/`, {
+      
+      const API_URL = process.env.NEXT_PUBLIC_API_URL;
+      const response = await fetch(`${API_URL}/api/entries/${entryId}/`, {
         headers: {
           Authorization: `Token ${token}`, // Authorization başlığı ekle
           "Content-Type": "application/json", // Content-Type başlığı ekle
@@ -95,10 +111,16 @@ export const ChatLayout = () => {
       const transformedMessages = data.chats.map((chat: { user_query: string; gpt_response: string }) => ({
         user_query: chat.user_query,
         gpt_response: chat.gpt_response,
+        sources: []
       }));
-      setMessages(transformedMessages); // Endpoint'ten dönen `chats` alanını kullanıyoruz
-      
-      console.log("Messages:", transformedMessages);
+      setMessages((prevMessages: ChatMessage[]) => {
+        // Eğer önceden mesaj varsa ve son mesajın sources'u doluysa:
+        if (prevMessages.length > 0 && prevMessages[prevMessages.length - 1].sources && prevMessages[prevMessages.length - 1].sources!.length > 0) {
+          // API'dan gelen mesajlar dizisinin son öğesinin sources'unu, önceden eklenmiş son mesajın sources'u ile güncelleyin
+          transformedMessages[transformedMessages.length - 1].sources = prevMessages[prevMessages.length - 1].sources;
+        }
+        return transformedMessages;
+      });
       console.log("Messages State:", messages);
 
     } catch (error) {
@@ -107,7 +129,7 @@ export const ChatLayout = () => {
   };
 
   useEffect(() => {
-    fetchChatEntries();
+    fetchChatEntries(1);
   }, []);
 
   useEffect(() => {
@@ -152,6 +174,15 @@ export const ChatLayout = () => {
     });
     setMessages([]); // Mesajlar sıfırlanır
   };
+  //Eski Entry'lerin created_at değerini yeni bir zamanda günceller
+  function updateEntryTimestampLocally(chatId: string) {
+    const newDate = new Date().toISOString();
+    setChats((prev) =>
+      prev.map((c) =>
+        c.entry_id === chatId ? { ...c, created_at: newDate } : c
+      )
+    );
+  }  
 
   return (
     <div className="flex h-screen bg-gray-100 dark:bg-gray-800">
@@ -166,6 +197,7 @@ export const ChatLayout = () => {
         renameChat={renameChat}
         deleteChat={deleteChat}
         isEntriesLoading={isEntriesLoading}
+        loadMoreChats={loadMoreChats}
       />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-white shadow-md z-10 dark:bg-gray-800 dark:shadow-zinc-700 border-b-gray-700">
@@ -197,6 +229,8 @@ export const ChatLayout = () => {
           fetchChatEntries={fetchChatEntries}
           setMessages={setMessages}
           isMobile={isMobile}
+          appendNewChatEntry={appendNewChatEntry}
+          updateEntryTimestampLocally={updateEntryTimestampLocally}
         />
       </div>
     </div>
