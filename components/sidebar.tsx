@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { SearchModal } from "./searchModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import Image from "next/image";
 
 type Document = {
   id: number;
@@ -315,7 +316,7 @@ export const Sidebar = ({
               onClick={createNewChat}
               title="Yeni sohbet oluştur"
             >
-              <img
+              <Image
                 src="/logo.png"
                 alt="Yeni Sohbet Logosu"
                 className="mr-1 h-6 w-6 border border-spacing-2 border-zinc-500 rounded-full"

@@ -35,7 +35,7 @@ export type ChartConfig = {
     values: number[];
     title: string;
   };
-  options?: any;
+  options?: Record<string, unknown>;
 };
 
 type ChartRendererProps = {
@@ -118,7 +118,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
   const lightLegendColor = "#374151";
   const lightGridColor = "#d1d5db";
 
-  let defaultOptions: any;
+  let defaultOptions: Record<string, unknown>;
   if (type === "pie") {
     defaultOptions = {
       responsive: true,
