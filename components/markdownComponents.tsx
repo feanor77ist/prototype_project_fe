@@ -97,9 +97,5 @@ export const markdownComponents = {
     </td>
   ),
   // Eğer HTML içinde <chart> etiketi varsa, ChartTag bileşenini devreye sokalım.
-  chart: (props: any) => {
-    // Eğer rehypeRaw ile HTML parse ediliyorsa, props doğrudan öznitelikleri içerir.
-    const { type, data } = props;
-    return <ChartTag type={type} data={data} />;
-  },
+  chart: ({ type, data }: { type: string; data: string }) => <ChartTag type={type} data={data} />,
 };
