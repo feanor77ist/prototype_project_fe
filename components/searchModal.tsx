@@ -39,7 +39,7 @@ export const SearchModal = ({
   useEffect(() => {
     if (searchQuery) {
       const filteredChats = chats.filter((chat) =>
-        chat.entry_name.toLowerCase().includes(searchQuery.toLowerCase())
+        chat.entry_name.toLowerCase()?.includes(searchQuery.toLowerCase())
       );
       setSearchResults(filteredChats);
     } else {

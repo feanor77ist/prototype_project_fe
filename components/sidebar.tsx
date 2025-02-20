@@ -103,7 +103,7 @@ export const Sidebar = ({
 
   // Kullanıcı Yetkilendirme
   const permissions = JSON.parse(localStorage.getItem("permissions") || "null");
-  const hasDocumentPermission = permissions.includes("my_app.view_document");
+  const hasDocumentPermission = permissions?.includes("my_app.view_document");
 
   // 1) ScrollArea içindeki gerçek viewport'u bulup scroll event'i dinliyoruz
   useEffect(() => {
