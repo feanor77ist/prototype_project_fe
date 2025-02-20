@@ -108,8 +108,10 @@ export const ChatArea = ({
       }
     }
 
+    const wsBaseURL = process.env.NEXT_PUBLIC_WS_BASE_URL;
+    
     if (!socket || socket.readyState !== WebSocket.OPEN) {
-      const newSocket = new WebSocket(`ws://127.0.0.1:8000/ws/chat/${chatId}/?token=${token}`);
+      const newSocket = new WebSocket(`${wsBaseURL}/ws/chat/${chatId}/?token=${token}`);
       newSocket.onopen = () => {
         newSocket.send(JSON.stringify({ question: input, entry_id: chatId }));
       };
