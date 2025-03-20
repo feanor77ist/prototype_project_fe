@@ -211,7 +211,7 @@ export const ChatLayout = () => {
               <Menu className="h-6 w-6" />
             </Button>
             <h1 className="text-lg font-semibold text-gray-500 dark:text-gray-400">
-              Smart Assistant
+              CognivIA
             </h1>
             <div className="flex items-center space-x-2">
               <UserAvatar  />

@@ -69,9 +69,14 @@ export const markdownComponents = {
     </Link>
   ),
   table: ({ children, ...props }: ComponentPropsWithoutRef<"table">) => (
-    <table {...props} className="w-full mx-auto my-3 border-collapse rounded-lg overflow-hidden shadow-md my-custom-table">
-      {children}
-    </table>
+    <div className="overflow-x-auto w-full">
+      <table
+        {...props}
+        className="table-auto w-full my-3 border-collapse rounded-lg overflow-hidden shadow-md my-custom-table"
+      >
+        {children}
+      </table>
+    </div>
   ),
   thead: ({ children, ...props }: ComponentPropsWithoutRef<"thead">) => (
     <thead {...props} className="bg-gray-200 dark:bg-zinc-700 text-gray-900 dark:text-gray-200">

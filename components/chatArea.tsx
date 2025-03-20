@@ -322,7 +322,7 @@ export const ChatArea = ({
                       !isMobile ? "ml-10" : ""
                     }`}
                   >
-                    <AvatarImage src="/logo.png" alt="AI" />
+                    <AvatarImage src="/lcw.png" alt="AI" />
                     <AvatarFallback>AI</AvatarFallback>
                   </Avatar>
                   <div className="flex w-full relative">

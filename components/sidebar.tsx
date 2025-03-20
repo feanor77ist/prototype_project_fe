@@ -317,13 +317,13 @@ export const Sidebar = ({
               title="Yeni sohbet oluştur"
             >
               <Image
-                src="/logo.png"
+                src="/lcw.png"
                 alt="Yeni Sohbet Logosu"
                 className="mr-1 h-6 w-6 border border-spacing-2 border-zinc-500 rounded-full"
                 width={24}
                 height={24}
               />
-              Smart Assistant
+              CognivIA
             </Button>
 
             {hasDocumentPermission ? (
